@@ -80,7 +80,7 @@ class AI(object):
 
         return stopDigging, bestBoard
 
-    def negaScout(self, board, depth, alpha, beta, color):
+    def negaScout(self, board, player, depth, alpha, beta, color):
 
         if (not self.game.moveCanBeMade(board, player) or depth == maxDepth):
             utility = self.utilityOf(board)
@@ -92,18 +92,18 @@ class AI(object):
                 stopDigging = True
                 return stopDigging, board, 0
         '''
-
         bestBoard = None
         first = True
         for successor in successorBoards:
             score = 0
+
             if first:
-                score = -self.negaScout(successor, depth + 1, -beta, -alpha, -color)[2]
+                score = -self.negaScout(successor, player, depth + 1, -beta, -alpha, -color)[2]
                 first = False
             else:
-                score = -self.negaScout(successor, depth + 1, -alpha- 1 , -alpha. -color)[2]
+                score = -self.negaScout(successor, player, depth + 1, -alpha- 1 , -alpha. -color)[2]
                 if alpha < score and score < beta:
-                    score = -self.negaScout(successor, depth + 1, -beta, -score, -color)[2]
+                    score = -self.negaScout(successor, player, depth + 1, -beta, -score, -color)[2]
 
             if score >= alpha:
                 bestBoard = successor
@@ -113,13 +113,6 @@ class AI(object):
                 break
 
         return stopDigging, bestBoard, alpha
-
-
-
-
-
-
-
 
 
     def findSuccessorBoards(self, board, player):
