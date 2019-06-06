@@ -1,4 +1,4 @@
-import time, math
+import time, math, copy
 INFINITY = float("inf")
 
 
@@ -199,8 +199,7 @@ class GameAI(object):
 
 
 
-
-
+	# return a list of successor boards
 	# return a list of successor boards
 	def findSuccessorBoards(self, board, player):
 		successorBoards = []
@@ -209,7 +208,7 @@ class GameAI(object):
 				if board[row][col] == 0:
 					numAvailableMoves = self.game.placePiece(board, row, col, player, PLAYMODE=False)
 					if numAvailableMoves > 0:
-						successorBoard = [row[:] for row in board]
+						successorBoard = copy.deepcopy([row[:] for row in board])
 						successorBoard[row][col] = player
 						successorBoards.append(successorBoard)
 		return successorBoards
