@@ -19,6 +19,17 @@ class AI(object):
         # perform move (there must be an available move)
         self.game.performMove(self.move[0], self.move[1])
 
+    def getSortedNode(self, board, player):
+        sortedNodes = []
+        successorBoards = self.findSuccessorBoards(board, player)
+        for successorBoard in successorBoards:
+            sortedNodes.append((successorBoard, self.utilityOf(successorBoard)))
+        sortedNodes = sorted(sortedNodes, key=lambda node: node[1], reverse=True)
+        sortedNodes = [node[0] for node in sortedNodes]
+
+        return sortedNodes
+
+
     def miniMax(self, board):
         startTime = time.time()
         timeElapsed = 0
@@ -28,7 +39,7 @@ class AI(object):
         stopDigging = False
 
         while not stopDigging and timeElapsed < self.timeLimit:
-            stopDigging, optimalBoard = self.miniMaxHelper(board, depth, 3, -INFINITY, INFINITY, 2)
+            stopDigging, optimalBoard = self.miniMaxHelper(board, 3, -INFINITY, INFINITY, 2)
             endTime = time.time()
             timeElapsed += endTime - startTime
             startTime = endTime
@@ -43,15 +54,15 @@ class AI(object):
         return optimalMove
 
 
-    def miniMaxHelper(self, board, depth, maxDepth, alpha, beta, player):
+    def miniMaxHelper(self, board, depth, alpha, beta, player):
         if self.debug:
             print("Level: " + str(depth))
         stopDigging = False
 
-        if (not self.game.moveCanBeMade(board, player) or depth == maxDepth):
+        if (not self.game.moveCanBeMade(board, player) or depth == 0):
             return stopDigging, board
 
-        successorBoards = self.findSuccessorBoards(board, player)
+        successorBoards = self.getSortedNode(board, player)
         if len(successorBoards) == 0:
             stopDigging = True
             return (stopDigging, board)
@@ -60,7 +71,7 @@ class AI(object):
         if player == 2:
             maxVal = -INFINITY
             for successor in successorBoards:
-                stopDigging, miniBoard = self.miniMaxHelper(successor, depth, alpha, beta, 1)
+                stopDigging, miniBoard = self.miniMaxHelper(successor, depth - 1, alpha, beta, 1)
                 utility = self.utilityOf(miniBoard)
                 if utility > maxVal:
                     bestBoard = successor
@@ -71,7 +82,7 @@ class AI(object):
         else:
             minVal = INFINITY
             for successor in successorBoards:
-                stopDigging, maxBoard = self.self.miniMaxHelper(successor, depth, alpha, beta, 2)
+                stopDigging, maxBoard = self.self.miniMaxHelper(successor, depth - 1, alpha, beta, 2)
                 utility = self.utilityOf(maxBoard)
                 if utility < minVal:
                     bestBoard = successor
@@ -82,29 +93,6 @@ class AI(object):
         return stopDigging, bestBoard
 
     def negaScout(self, board):
-        optimalFlipping = 0
-        if board[0][0] == 0:
-            flippingAtCorner = self.game.placePiece(board, 0, 0, 2, PLAYMODE=False)
-            if flippingAtCorner > optimalFlipping:
-                optimalFlipping = flippingAtCorner
-                optimalMove = (0, 0)
-        if board[7][0] == 0:
-            flippingAtCorner = self.game.placePiece(board, 7, 0, 2, PLAYMODE=False)
-            if flippingAtCorner > optimalFlipping:
-                optimalFlipping = flippingAtCorner
-                optimalMove = (7, 0)
-        if board[0][7] == 0:
-            flippingAtCorner = self.game.placePiece(board, 0, 7, 2, PLAYMODE=False)
-            if flippingAtCorner > optimalFlipping:
-                optimalFlipping = flippingAtCorner
-                optimalMove = (0, 7)
-        if board[7][7] == 0:
-            flippingAtCorner = self.game.placePiece(board, 7, 7, 2, PLAYMODE=False)
-            if flippingAtCorner > optimalFlipping:
-                optimalFlipping = flippingAtCorner
-                optimalMove = (7, 7)
-        if optimalFlipping > 0:
-            return optimalMove
 
         startTime = time.time()
         timeElapsed = 0
@@ -113,7 +101,13 @@ class AI(object):
         optimalBoard = board
         stopDigging = False
         while not stopDigging and timeElapsed < self.timeLimit:
-            (stopDigging, optimalBoard, alpha) = self.negaScoutHelper(board, 2, 0, depth, -INFINITY, INFINITY, 1)
+            #(stopDigging, optimalBoard, alpha) = self.negaScoutHelper(board, 2, depth, -INFINITY, INFINITY, 1)
+            maxScore = -INFINITY
+            for successor in self.getSortedNode(board, 2):
+                point = self.negaScoutHelper2(successor, 2, depth, -INFINITY, INFINITY, 1)
+                if point > maxScore:
+                    maxScore = point
+                    optimalBoard = successor
             endTime = time.time()
             timeElapsed += endTime - startTime
             startTime = endTime
@@ -127,40 +121,59 @@ class AI(object):
 
         return optimalMove
 
-    def negaScoutHelper(self, board, player, depth, maxDepth, alpha, beta, color):
+    def negaScoutHelper(self, board, player, depth, alpha, beta, color):
         if self.debug:
             print("here")
         stopDigging = False
 
-        if (not self.game.moveCanBeMade(board, player) or depth == maxDepth):
+        if (not self.game.moveCanBeMade(board, player) or depth == 0):
             utility = self.utilityOf(board)
             return stopDigging, board, color * utility
 
-        successorBoards = self.findSuccessorBoards(board, player)
-        '''
-            if len(successorBoards) == 0:
-                stopDigging = True
-                return stopDigging, board, 0
-        '''
+        successorBoards = self.getSortedNode(board, player)
         bestBoard = None
         first = True
         for successor in successorBoards:
-            if first:
-                score = -self.negaScoutHelper(successor, player, depth + 1, maxDepth, -beta, -alpha, -color)[2]
-                first = False
-            else:
-                score = -self.negaScoutHelper(successor, player, depth + 1, maxDepth, -alpha - 1, -alpha, -color)[2]
+            if not first:
+                score = -self.negaScoutHelper(successor, player, depth - 1, -alpha - 1, -alpha, -color)[2]
                 if alpha < score < beta:
-                    score = -self.negaScoutHelper(successor, player, depth + 1, maxDepth, -beta, -score, -color)[2]
+                    score = -self.negaScoutHelper(successor, player, depth - 1, -beta, -score, -color)[2]
+            else:
+                first = False
+                score = -self.negaScoutHelper(successor, player, depth - 1, -beta, -alpha, -color)[2]
 
             if score >= alpha:
                 bestBoard = successor
                 alpha = score
 
             if alpha >= beta:
-                break
+                break #prune
 
         return stopDigging, bestBoard, alpha
+
+
+    def negaScoutHelper2(self, board, player, depth, alpha, beta, color):
+
+        if not self.game.moveCanBeMade(board, player) or depth == 0:
+            return self.utilityOf(board) * color
+        successorBoards = self.getSortedNode(board, player)
+        first = True
+
+        for successor in successorBoards:
+            if not first:
+                score = -self.negaScoutHelper2(successor, player, depth - 1, -alpha - 1, -alpha, -color)
+                if alpha < score < beta:
+                    score = -self.negaScoutHelper2(successor, player, depth - 1, -beta, -score, -color)
+            else:
+                first = False
+                score = -self.negaScoutHelper2(successor, player, depth - 1, -beta, -alpha, -color)
+
+            alpha = max(alpha, score)
+            if alpha >= beta:
+                break
+
+        return alpha
+
 
     # return a list of successor boards
     def findSuccessorBoards(self, board, player):
