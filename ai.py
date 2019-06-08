@@ -1,4 +1,5 @@
 import time, math, copy
+import numpy as np
 INFINITY = float("inf")
 
 
@@ -11,14 +12,23 @@ class GameAI(object):
 		self.debug = False  # True for debugging
 
 	# AI perform move (there must be an available move due to the pre-move check)
-	def performMove(self):
+	def performMove(self, index):
 		# Iterative Deepening MiniMax Search with Alpha-Beta Pruning
 		tmpBoard = [row[:] for row in self.game.board] # we don't want to make changes to the game board
-		#self.move = self.miniMax(tmpBoard)
-		self.move = self.negaScout(tmpBoard)
+		if index == 0:
+			self.move = self.miniMax(tmpBoard)
+			print("minimax")
+			print(self.move)
+		else:
+			self.move = self.negaScout(tmpBoard)
+			print("negascout")
+			print(self.move)
 
-		# perform move (there must be an available move)
-		self.game.performMove(self.move[0], self.move[1])
+		if self.move is None:
+			return
+		else:
+			# perform move (there must be an available move)
+			self.game.performMove(self.move[0], self.move[1])
 
 	def getSortedNode(self, board, player):
 		sortedNodes = []
@@ -35,29 +45,7 @@ class GameAI(object):
 		Return the optimal move within limited resources. 
 	"""
 	def miniMax(self, board):
-		optimalFlipping = 0
-		if board[0][0] == 0:
-			flippingAtCorner = self.game.placePiece(board, 0, 0, 2, PLAYMODE=False)
-			if flippingAtCorner > optimalFlipping:
-				optimalFlipping = flippingAtCorner
-				optimalMove = (0, 0)
-		if board[7][0] == 0:
-			flippingAtCorner = self.game.placePiece(board, 7, 0, 2, PLAYMODE=False)
-			if flippingAtCorner > optimalFlipping:
-				optimalFlipping = flippingAtCorner
-				optimalMove = (7, 0)
-		if board[0][7] == 0:
-			flippingAtCorner = self.game.placePiece(board, 0, 7, 2, PLAYMODE=False)
-			if flippingAtCorner > optimalFlipping:
-				optimalFlipping = flippingAtCorner
-				optimalMove = (0, 7)
-		if board[7][7] == 0:
-			flippingAtCorner = self.game.placePiece(board, 7, 7, 2, PLAYMODE=False)
-			if flippingAtCorner > optimalFlipping:
-				optimalFlipping = flippingAtCorner
-				optimalMove = (7, 7)
-		if optimalFlipping > 0:	
-			return optimalMove
+
 
 		startTime = time.time()
 		timeElapsed = 0
@@ -73,11 +61,15 @@ class GameAI(object):
 			depth += 1
 		print("[Console MSG] Time used by AI: " + str(timeElapsed))
 
+		if optimalBoard == board:
+			return None
+
 		for row in range(0, 8):
 			for col in range(0, 8):
 				if board[row][col] != optimalBoard[row][col]:
 					optimalMove = (row, col)
 
+		print(np.asarray(optimalBoard).reshape(8, 8))
 		return optimalMove
 
 	""" Iterative Deepening MiniMax Search with Alpha-Beta Pruning
@@ -101,7 +93,7 @@ class GameAI(object):
 		bestBoard = None
 
 		if player == 2:
-			maxValue = -math.inf
+			maxValue = -INFINITY
 			for idx in range(0, len(successorBoards)):
 				stopDigging, lookaheadBoard = self.IDMiniMax(successorBoards[idx], currentLevel+1, maxLevel, 1, alpha, beta)
 				utility = self.utilityOf(lookaheadBoard)
@@ -112,7 +104,7 @@ class GameAI(object):
 				if utility >= beta:
 					return (stopDigging, successorBoards[idx])  # prune
 		else:
-			minValue = math.inf
+			minValue = INFINITY
 			for idx in range(0, len(successorBoards)):
 				stopDigging, lookaheadBoard = self.IDMiniMax(successorBoards[idx], currentLevel+1, maxLevel, 2, alpha, beta)
 				utility = self.utilityOf(lookaheadBoard)
@@ -126,29 +118,6 @@ class GameAI(object):
 		return stopDigging, bestBoard
 
 	def negaScout(self, board):
-		optimalFlipping = 0
-		if board[0][0] == 0:
-			flippingAtCorner = self.game.placePiece(board, 0, 0, 2, PLAYMODE=False)
-			if flippingAtCorner > optimalFlipping:
-				optimalFlipping = flippingAtCorner
-				optimalMove = (0, 0)
-		if board[7][0] == 0:
-			flippingAtCorner = self.game.placePiece(board, 7, 0, 2, PLAYMODE=False)
-			if flippingAtCorner > optimalFlipping:
-				optimalFlipping = flippingAtCorner
-				optimalMove = (7, 0)
-		if board[0][7] == 0:
-			flippingAtCorner = self.game.placePiece(board, 0, 7, 2, PLAYMODE=False)
-			if flippingAtCorner > optimalFlipping:
-				optimalFlipping = flippingAtCorner
-				optimalMove = (0, 7)
-		if board[7][7] == 0:
-			flippingAtCorner = self.game.placePiece(board, 7, 7, 2, PLAYMODE=False)
-			if flippingAtCorner > optimalFlipping:
-				optimalFlipping = flippingAtCorner
-				optimalMove = (7, 7)
-		if optimalFlipping > 0:
-			return optimalMove
 
 		startTime = time.time()
 		timeElapsed = 0
@@ -159,8 +128,8 @@ class GameAI(object):
 		while not stopDigging and timeElapsed < self.timeLimit:
 			# (stopDigging, optimalBoard, alpha) = self.negaScoutHelper(board, 2, depth, -INFINITY, INFINITY, 1)
 			maxScore = -INFINITY
-			for successor in self.getSortedNode(board, 2):
-				point = self.negaScoutHelper2(successor, 2, depth, -INFINITY, INFINITY, 1)
+			for successor in self.findSuccessorBoards(board, 1):
+				point = self.negaScoutHelper2(successor, 1, depth, -INFINITY, INFINITY, 1)
 				if point > maxScore:
 					maxScore = point
 					optimalBoard = successor
@@ -169,58 +138,27 @@ class GameAI(object):
 			startTime = endTime
 			depth += 1
 		print("[Console MSG] Time used by AI: " + str(timeElapsed))
+
+		if optimalBoard == board:
+			print("here")
+			return None
+
 		for row in range(0, 8):
 			for col in range(0, 8):
 				if board[row][col] != optimalBoard[row][col]:
 					optimalMove = (row, col)
 
-		print(self.utilityOf(optimalBoard))
+		print(np.asarray(optimalBoard).reshape(8, 8))
+
+		print(optimalMove)
 
 		return optimalMove
-
-	def negaScoutHelper(self, board, player, depth, alpha, beta, color):
-		if self.debug:
-			print("here")
-		stopDigging = False
-
-		if (not self.game.moveCanBeMade(board, player) or depth == 0):
-			utility = self.utilityOf(board)
-			return stopDigging, board, color * utility
-
-		successorBoards = self.getSortedNode(board, player)
-		'''
-            if len(successorBoards) == 0:
-                stopDigging = True
-                return stopDigging, board, 0
-        '''
-
-		bestBoard = None
-		first = True
-		for successor in successorBoards:
-			if not first:
-				score = -self.negaScoutHelper(successor, player, depth - 1, -alpha - 1, -alpha, -color)[2]
-				if alpha < score < beta:
-					score = -self.negaScoutHelper(successor, player, depth - 1, -beta, -score, -color)[2]
-			else:
-				first = False
-				score = -self.negaScoutHelper(successor, player, depth - 1, -beta, -alpha, -color)[2]
-
-
-
-			if score >= alpha:
-				bestBoard = successor
-				alpha = score
-
-			if alpha >= beta:
-				break  # prune
-
-		return stopDigging, bestBoard, alpha
 
 	def negaScoutHelper2(self, board, player, depth, alpha, beta, color):
 
 		if not self.game.moveCanBeMade(board, player) or depth == 0:
 			return self.utilityOf(board) * color
-		successorBoards = self.getSortedNode(board, player)
+		successorBoards = self.findSuccessorBoards(board, player)
 		first = True
 
 		for successor in successorBoards:

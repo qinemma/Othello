@@ -12,7 +12,7 @@ class Othello(object):
 	def __init__(self):
 		super().__init__()
 
-		self.player = 1
+		self.player = 2
 		self.victory = 0  # 0 - ongoing | 1 - black win | 2 - white win | (-1) - draw
 		self.whiteTiles = 2
 		self.blackTiles = 2
@@ -29,22 +29,30 @@ class Othello(object):
 		# set up AI - player-computer mode
 		self.ai = ai.GameAI(self)
 		self.changed = True
-		self.AIReadyToMove = False
+		self.AIReadyToMove = True
+
+
+		# set up second AI computer-computer mode
+		# set second = True to enable two AI game
+		self.second = True
+		self.secondAIReadyToMove = False
 
 		self.debug = False # True for debugging
 
+	#Human player perform move
 	def playerMove(self, x, y):
 		# if the game is over or not player's turn
 		if self.victory != 0 or (self.useAI and self.player != 1):
 			return
-
-		self.performMove(x, y)
+		if not self.second:
+			self.performMove(x, y)
 
 		# AI's turn and AI is ready to move
 		if self.useAI and self.player == 2:
 			self.AIReadyToMove = True
 			if self.debug:
 				print("AI is ready to move!")
+
 
 	def performMove(self, x, y):
 		if self.debug:
@@ -115,17 +123,26 @@ class Othello(object):
 						movesFound = True
 		return movesFound
 
-	def AIMove(self):
-		self.ai.performMove()
-		self.AIReadyToMove = False
+	def AIMove(self, index):
+		self.ai.performMove(index)
+		if self.second == True:
+			if index == 1:
+				self.secondAIReadyToMove = False
+			else:
+				self.AIReadyToMove = False
+		else:
+			self.AIReadyToMove = False
 
 	def endGame(self, whiteTiles, blackTiles):
 		if whiteTiles > blackTiles:
 			self.victory = 2
+			print("White wins")
 		elif whiteTiles < blackTiles:
 			self.victory = 1
+			print("Black wins")
 		else:
 			self.victory = -1
+			print("Tie")
 		self.changed = True
 		self.whiteTiles = whiteTiles
 		self.blackTiles = blackTiles
@@ -137,6 +154,7 @@ class Othello(object):
 	"""
 	def placePiece(self, board, row, col, playerID, PLAYMODE=True):
 		if PLAYMODE:
+			print(self.player, row, col)
 			board[row][col] = self.player
 		count = 0  # record number of flips
 

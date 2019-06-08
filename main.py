@@ -1,6 +1,6 @@
-import pygame;
-import sys, time, math;
-import othello;
+import pygame
+import sys, time, math
+import othello
 
 BLOCK_SIZE = 50
 PADDING_SIZE = 5
@@ -47,8 +47,10 @@ class Game_Engine(object):
 		self.newGame()
 
 		while True:
+
 			if self.game.AIReadyToMove:
-			     self.game.AIMove()
+				print(self.game.AIReadyToMove)
+				self.game.AIMove(0)
 			else:
 				for event in pygame.event.get():
 					if event.type == pygame.QUIT:
@@ -65,15 +67,46 @@ class Game_Engine(object):
 						self.mousemoveHandler(event)
 					else:
 						pass
+
 			if self.game.changed:
 				self.drawBoard()
 				self.game.changed = False
 			
 			if self.game.AIReadyToMove:
-			     self.game.AIMove()
+				print(self.game.AIReadyToMove)
+				self.game.AIMove(0)
 
 			self.clock.tick(FRAME_PER_SECOND)
 		self.quitGame()
+
+	def AIstart(self):
+		self.preparation()
+		self.newGame()
+		while True:
+			if self.game.changed:
+				self.drawBoard()
+				self.game.changed = False
+
+			if self.game.victory != 0:
+				self.quitGame()
+
+			if self.game.AIReadyToMove and self.game.player == 2:
+				self.game.AIMove(0)
+				self.game.AIReadyToMove = False
+				self.game.secondAIReadyToMove = True
+				self.game.player = 1
+
+
+			if self.game.secondAIReadyToMove and self.game.player == 1:
+				self.game.AIMove(1)
+				self.game.secondAIReadyToMove = False
+				self.game.AIReadyToMove = True
+				self.game.player = 2
+
+			self.clock.tick(FRAME_PER_SECOND)
+
+		self.quitGame()
+
 
 	def drawText(self, text, font, screen, x, y, rgb):
 		textObj = font.render(text, 1, (rgb[0],rgb[1],rgb[2]))
@@ -163,4 +196,5 @@ class Game_Engine(object):
 
 if __name__ == '__main__':
 	engine = Game_Engine()
-	engine.start()
+	engine.AIstart()
+	#engine.start()
