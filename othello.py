@@ -12,7 +12,7 @@ class Othello(object):
 	def __init__(self):
 		super().__init__()
 
-		self.player = 2
+		self.player = 2 # change to 2 when play two AI
 		self.victory = 0  # 0 - ongoing | 1 - black win | 2 - white win | (-1) - draw
 		self.whiteTiles = 2
 		self.blackTiles = 2
@@ -103,9 +103,11 @@ class Othello(object):
 					if self.debug:
 						print("Player " + str(self.player) + " can move, then move!")
 					if self.useAI and self.player == 2:
-						self.ai.performMove()
+						self.ai.performMove(0)
 					# this player can move, move
 					self.changed = True
+					if self.second and self.player == 1:
+						self.ai.performMove(1)
 			else:
 				# opponent can move, alternate between player 1 and 2
 				self.player = 3 - self.player

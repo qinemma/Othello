@@ -1,6 +1,10 @@
 import time, math, copy
 import numpy as np
+import pandas as pd
+import machineLearning
+import pickle
 INFINITY = float("inf")
+
 
 
 class GameAI(object):
@@ -10,6 +14,8 @@ class GameAI(object):
 		self.move = (-1,-1)
 		self.timeLimit = 3  # 3 seconds is the time limit for search
 		self.debug = False  # True for debugging
+		self.fileObject = open("decisionTree", 'rb')
+		self.tree = pickle.load(self.fileObject)
 
 	# AI perform move (there must be an available move due to the pre-move check)
 	def performMove(self, index):
@@ -25,6 +31,7 @@ class GameAI(object):
 			print(self.move)
 
 		if self.move is None:
+			print("here")
 			return
 		else:
 			# perform move (there must be an available move)
@@ -34,7 +41,7 @@ class GameAI(object):
 		sortedNodes = []
 		successorBoards = self.findSuccessorBoards(board, player)
 		for successorBoard in successorBoards:
-			sortedNodes.append((successorBoard, self.utilityOf(successorBoard)))
+			sortedNodes.append((successorBoard, self.utilityOf(successorBoard, player)))
 		sortedNodes = sorted(sortedNodes, key=lambda node: node[1], reverse=True)
 		sortedNodes = [node[0] for node in sortedNodes]
 
@@ -46,7 +53,7 @@ class GameAI(object):
 	"""
 	def miniMax(self, board):
 
-
+		print("here")
 		startTime = time.time()
 		timeElapsed = 0
 		depth = 2
@@ -96,7 +103,7 @@ class GameAI(object):
 			maxValue = -INFINITY
 			for idx in range(0, len(successorBoards)):
 				stopDigging, lookaheadBoard = self.IDMiniMax(successorBoards[idx], currentLevel+1, maxLevel, 1, alpha, beta)
-				utility = self.utilityOf(lookaheadBoard)
+				utility = self.utilityOf(lookaheadBoard, player)
 				if utility > maxValue:
 					maxValue = utility
 					bestBoard = successorBoards[idx]
@@ -107,7 +114,7 @@ class GameAI(object):
 			minValue = INFINITY
 			for idx in range(0, len(successorBoards)):
 				stopDigging, lookaheadBoard = self.IDMiniMax(successorBoards[idx], currentLevel+1, maxLevel, 2, alpha, beta)
-				utility = self.utilityOf(lookaheadBoard)
+				utility = self.utilityOf(lookaheadBoard, player)
 				if utility < minValue:
 					minValue = utility
 					bestBoard = successorBoards[idx]
@@ -128,7 +135,7 @@ class GameAI(object):
 		while not stopDigging and timeElapsed < self.timeLimit:
 			# (stopDigging, optimalBoard, alpha) = self.negaScoutHelper(board, 2, depth, -INFINITY, INFINITY, 1)
 			maxScore = -INFINITY
-			for successor in self.findSuccessorBoards(board, 1):
+			for successor in self.getSortedNode(board, 1):
 				point = self.negaScoutHelper2(successor, 1, depth, -INFINITY, INFINITY, 1)
 				if point > maxScore:
 					maxScore = point
@@ -157,8 +164,8 @@ class GameAI(object):
 	def negaScoutHelper2(self, board, player, depth, alpha, beta, color):
 
 		if not self.game.moveCanBeMade(board, player) or depth == 0:
-			return self.utilityOf(board) * color
-		successorBoards = self.findSuccessorBoards(board, player)
+			return self.utilityOf(board, player) * color
+		successorBoards = self.getSortedNode(board, player)
 		first = True
 
 		for successor in successorBoards:
@@ -193,7 +200,176 @@ class GameAI(object):
 	# evaluation function (heuristics for non-final node) in this state (board)
 	# AI - white | maximizer;
 	# Player - black | minimizer;
-	def utilityOf(self, board):
+
+	def utilityOf(self, board, player):
+		board_mobility = self.mobility(board, player)
+		board_frontier = self.frontierSquares(board, player)
+		board_corners = self.corners(board, player)
+		xsquares, csquares = self.x_c_squares(board, player)
+		board_parity = self.parity(board)
+		board_state = self.gameState(board)
+		df = pd.Series([board_mobility, board_frontier, board_corners, xsquares, csquares, board_parity, board_state],
+					   index=["numMoves", "frontier", "corners", "Xsquares", "CSquares", "parity", "state", "label"])
+
+		return machineLearning.predict(df, tree)
+
+	def mobility(self, board, player):
+		# mobility, number of moves a player can make
+		blackMovesFound = self.findSuccessorBoards(board, 1)
+		whiteMovesFound = self.findSuccessorBoards(board, 2)
+		if player == 1:
+			return len(blackMovesFound) - len(whiteMovesFound)
+		elif player == 2:
+			return len(whiteMovesFound) - len(blackMovesFound)
+		else:
+			return 0
+
+
+	def frontierSquares(self, board, player):
+		if player == 1:
+			opp = 2
+		if player == 2:
+			opp = 1
+		#     print(temp)
+		#     print(states[n])
+		#     print(states[n] == 0) #unoccupied
+		#     print(states[n] == players[n])
+		coords_x, coords_y = np.where(np.array(board) == player)  # coordinates that surround opponents' pieces
+
+		opp_coords_x, opp_coords_y = np.where(np.array(board) == opp)
+		#     print("x coordinates", coords_x)
+		#     print("y coordinates", coords_y)
+		#     print("x coordinates", opp_coords_x)
+		#     print("y coordinates", opp_coords_y)
+
+		frontier = []
+		frontier_opp = []
+		sur_player = []
+		for i in range(len(coords_x)):
+
+			for row in [-1, 0, 1]:
+				for col in [-1, 0, 1]:
+					x = coords_x[i] + row
+					y = coords_y[i] + col
+					if 0 <= x < 8 and 0 <= y < 8:
+						np.append(sur_player, np.array([x, y]))
+			if len(sur_player) > 0:
+				sur_player = np.unique(np.asarray(sur_player), axis=0)
+				for i in range(len(sur_player)):
+					if board[sur_player[i][0]][sur_player[i][1]] == 0:
+						np.append(frontier, sur_player[i])
+						#frontier.append(sur_player[i])
+
+		sur_opp = []
+		for i in range(len(opp_coords_x)):
+			for row in [-1, 0, 1]:
+				for col in [-1, 0, 1]:
+					x = opp_coords_x[i] + row
+					y = opp_coords_y[i] + col
+					if 0 <= x < 8 and 0 <= y < 8:
+						#sur_opp.append(np.array([x, y]))
+						np.append(sur_opp, np.array([x, y]))
+			if len(sur_opp) > 0:
+				sur_opp = np.unique(np.asarray(sur_opp), axis=0)
+				for i in range(len(sur_opp)):
+					if board[sur_opp[i][0]][sur_opp[i][1]] == 0:
+						#frontier_opp.append(sur_opp[i])
+						np.append(frontier_opp, sur_opp[i])
+
+		return len(frontier) - len(frontier_opp)
+
+	#     print("player", len(frontier))
+	#     print("opp", len(frontier_opp))
+	#     print("frontier", len(frontier) - len(frontier_opp))
+
+	def corners(self, board, player):
+		corners = np.array([[0, 0], [0, 7], [7, 0], [7, 7]])
+		if player == 1:
+			opp = 2
+		if player == 2:
+			opp = 1
+		black_corner = 0
+		white_corner = 0
+		for corner in corners:
+			if board[corner[0]][corner[1]] == 0:
+				continue
+			elif board[corner[0]][corner[1]] == 1:
+				black_corner += 1
+			else:
+				white_corner += 1
+
+		if player == 1:
+			return black_corner - white_corner
+		elif player == 2:
+			return white_corner - black_corner
+		else:
+			return 0  # bit different from how the data is created, does not matter, because player 0 gets subsetted
+
+	def x_c_squares(self, board, player):
+		corners = np.array([[0, 0], [0, 7], [7, 0], [7, 7]])
+		x_squares = np.array([[1, 1], [1, 6], [6, 1], [6, 6]])
+		c_squares1 = np.array([[0, 1], [1, 7], [6, 0], [7, 6]])
+		c_squares2 = np.array([[1, 0], [0, 6], [7, 1], [6, 7]])
+		if player == 1:
+			opp = 2
+		if player == 2:
+			opp = 1
+		player_x_squares = 0
+		opp_x_squares = 0
+		player_c_squares = 0
+		opp_c_squares = 0
+		for i in range(len(x_squares)):
+			if board[corners[i][0]][corners[i][1]] == 0:
+				if board[x_squares[i][0]][x_squares[i][1]] == player:
+					player_x_squares += 1
+				if board[c_squares1[i][0]][c_squares1[i][1]] == player:
+					player_c_squares += 1
+				if board[c_squares2[i][0]][c_squares2[i][1]] == player:
+					player_c_squares += 1
+				if board[x_squares[i][0]][x_squares[i][1]] == opp:
+					opp_x_squares += 1
+				if board[c_squares1[i][0]][c_squares1[i][1]] == opp:
+					opp_c_squares += 1
+				if board[c_squares2[i][0]][c_squares2[i][1]] == opp:
+					opp_c_squares += 1
+				else:
+					continue
+		XSquares = player_x_squares - opp_x_squares
+		CSquares = player_c_squares - opp_c_squares
+		return XSquares, CSquares
+
+	def parity(self, board):
+
+		progress = 0
+		for row in range(8):
+			for col in range(8):
+				if board[row][col] != 0:
+					progress += 1
+
+
+		if progress % 2 == 0:
+			parity = 0
+		else:
+			parity = 1
+		return parity
+
+	def gameState(self, board):
+
+		progress = 0
+		for row in range(8):
+			for col in range(8):
+				if board[row][col] != 0:
+					progress += 1
+
+		if progress % 61 <= 20:
+			return "beginning"
+		elif progress % 61 <= 40:
+			return "middle"
+		else:
+			return "end"
+
+	'''
+		def utilityOf(self, board):
 		return self.pieceDifference(board) + self.cornerCaptions(board) + self.cornerCloseness(board) + self.mobility(board) + self.stability(board)
 
 	# piece difference when evaluating 
@@ -227,7 +403,7 @@ class GameAI(object):
 		else:
 			numCorners[1] += 1
 
-		return 25 * (numCorners[1] - numCorners[0])
+		return 50 * (numCorners[1] - numCorners[0])
 
 	# how many corner-closeness pieces are owned by each player
 	def cornerCloseness(self, board):
@@ -305,3 +481,9 @@ class GameAI(object):
 			return 0
 		else:
 			return 100 * whiteStability / (whiteStability + blackStability)
+	
+	'''
+
+
+
+

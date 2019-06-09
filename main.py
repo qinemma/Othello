@@ -45,13 +45,11 @@ class Game_Engine(object):
 	def start(self):
 		self.preparation()
 		self.newGame()
-
 		while True:
-
 			if self.game.AIReadyToMove:
-				print(self.game.AIReadyToMove)
 				self.game.AIMove(0)
 			else:
+				#print("here")
 				for event in pygame.event.get():
 					if event.type == pygame.QUIT:
 						self.quitGame()

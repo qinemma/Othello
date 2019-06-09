@@ -1,5 +1,5 @@
 # Othello
-credit to James.Qiu by email: jamesqiu@hku.hk
+credit to James.Qiu by email: jamesqiu@hku.hk in github
 
 ## An Screenshot of Game GUI
 
@@ -34,3 +34,4 @@ In Linux,
 - Install pygame: `sudo apt-get install python3-pygame`
 - Go to the root directory and run `python3 main.py`
 
+If user wants to play against AI
