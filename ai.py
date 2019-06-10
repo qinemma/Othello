@@ -28,10 +28,14 @@ class GameAI(object):
 		else:
 			self.move = self.negaScout(tmpBoard)
 			print("negascout")
+
+			#testing decision tree
+			#self.move = self.oriminiMax(tmpBoard)
+			#print("oriMinimax")
 			print(self.move)
 
 		if self.move is None:
-			print("here")
+			#print("here")
 			return
 		else:
 			# perform move (there must be an available move)
@@ -56,7 +60,7 @@ class GameAI(object):
 		print("here")
 		startTime = time.time()
 		timeElapsed = 0
-		depth = 2
+		depth = 3
 		optimalMove = (-1, -1)
 		optimalBoard = board
 		stopDigging = False
@@ -96,7 +100,7 @@ class GameAI(object):
 		successorBoards = self.findSuccessorBoards(board, player)
 		if len(successorBoards) == 0:
 			stopDigging = True
-			return (stopDigging, board)
+			return stopDigging, board
 		bestBoard = None
 
 		if player == 2:
@@ -201,9 +205,6 @@ class GameAI(object):
 		return successorBoards
 
 	# evaluation function (heuristics for non-final node) in this state (board)
-	# AI - white | maximizer;
-	# Player - black | minimizer;
-
 	def utilityOf(self, board, player):
 		board_mobility = self.mobility(board, player)
 		board_frontier = self.frontierSquares(board, player)
@@ -216,8 +217,9 @@ class GameAI(object):
 
 		return machineLearning.predict(df, self.tree)
 
+	# mobility, number of moves a player can make minus number of moves its opponent can make
 	def mobility(self, board, player):
-		# mobility, number of moves a player can make
+
 		blackMovesFound = self.findSuccessorBoards(board, 1)
 		whiteMovesFound = self.findSuccessorBoards(board, 2)
 		if player == 1:
@@ -227,29 +229,18 @@ class GameAI(object):
 		else:
 			return 0
 
-
+	# number of frontier that player occupies
 	def frontierSquares(self, board, player):
 		if player == 1:
 			opp = 2
 		if player == 2:
 			opp = 1
-		#     print(temp)
-		#     print(states[n])
-		#     print(states[n] == 0) #unoccupied
-		#     print(states[n] == players[n])
 		coords_x, coords_y = np.where(np.array(board) == player)  # coordinates that surround opponents' pieces
-
 		opp_coords_x, opp_coords_y = np.where(np.array(board) == opp)
-		#     print("x coordinates", coords_x)
-		#     print("y coordinates", coords_y)
-		#     print("x coordinates", opp_coords_x)
-		#     print("y coordinates", opp_coords_y)
-
 		frontier = []
 		frontier_opp = []
 		sur_player = []
 		for i in range(len(coords_x)):
-
 			for row in [-1, 0, 1]:
 				for col in [-1, 0, 1]:
 					x = coords_x[i] + row
@@ -261,7 +252,7 @@ class GameAI(object):
 				for i in range(len(sur_player)):
 					if board[sur_player[i][0]][sur_player[i][1]] == 0:
 						np.append(frontier, sur_player[i])
-						#frontier.append(sur_player[i])
+
 
 		sur_opp = []
 		for i in range(len(opp_coords_x)):
@@ -276,15 +267,12 @@ class GameAI(object):
 				sur_opp = np.unique(np.asarray(sur_opp), axis=0)
 				for i in range(len(sur_opp)):
 					if board[sur_opp[i][0]][sur_opp[i][1]] == 0:
-						#frontier_opp.append(sur_opp[i])
 						np.append(frontier_opp, sur_opp[i])
 
 		return len(frontier) - len(frontier_opp)
 
-	#     print("player", len(frontier))
-	#     print("opp", len(frontier_opp))
-	#     print("frontier", len(frontier) - len(frontier_opp))
 
+	#number of corners the player occupies
 	def corners(self, board, player):
 		corners = np.array([[0, 0], [0, 7], [7, 0], [7, 7]])
 		if player == 1:
@@ -308,6 +296,7 @@ class GameAI(object):
 		else:
 			return 0  # bit different from how the data is created, does not matter, because player 0 gets subsetted
 
+	#number of x_c squares player occupies
 	def x_c_squares(self, board, player):
 		corners = np.array([[0, 0], [0, 7], [7, 0], [7, 7]])
 		x_squares = np.array([[1, 1], [1, 6], [6, 1], [6, 6]])
@@ -342,7 +331,6 @@ class GameAI(object):
 		return XSquares, CSquares
 
 	def parity(self, board):
-
 		progress = 0
 		for row in range(8):
 			for col in range(8):
@@ -356,8 +344,8 @@ class GameAI(object):
 			parity = 1
 		return parity
 
+	#which game state the player is on
 	def gameState(self, board):
-
 		progress = 0
 		for row in range(8):
 			for col in range(8):
@@ -371,12 +359,85 @@ class GameAI(object):
 		else:
 			return "end"
 
-	'''
-		def utilityOf(self, board):
-		return self.pieceDifference(board) + self.cornerCaptions(board) + self.cornerCloseness(board) + self.mobility(board) + self.stability(board)
+	#Code later is used to test the how well the decision performs
+	#Original code from the ai.py
+
+	def oriminiMax(self, board):
+		startTime = time.time()
+		timeElapsed = 0
+		depth = 2
+		optimalMove = (-1, -1)
+		optimalBoard = board
+		stopDigging = False
+		while not stopDigging and timeElapsed < self.timeLimit:
+			(stopDigging, optimalBoard) = self.IDMiniMax(board, 0, depth, 1, -INFINITY, INFINITY)
+			endTime = time.time()
+			timeElapsed += endTime - startTime
+			startTime = endTime
+			depth += 1
+		print("[Console MSG] Time used by AI: " + str(timeElapsed))
+
+		for row in range(0, 8):
+			for col in range(0, 8):
+				if board[row][col] != optimalBoard[row][col]:
+					optimalMove = (row, col)
+
+		return optimalMove
+
+	""" Iterative Deepening MiniMax Search with Alpha-Beta Pruning
+        board - state at current node
+        player - player at current node (AI - white - maximizer; Player - black - minimizer)
+        currentLevel - level at current node
+        maxLevel - used to judge whether go deeper or not
+        Return the optimal board (state) found in the current level for the current node.
+    """
+
+	def oriIDMiniMax(self, board, currentLevel, maxLevel, player, alpha, beta):
+		if self.debug:
+			print("Level: " + str(currentLevel) + " maxLevel: " + str(maxLevel))
+		stopDigging = False
+		if (not self.game.moveCanBeMade(board, player) or currentLevel == maxLevel):
+			return (stopDigging, board)
+
+		successorBoards = self.findSuccessorBoards(board, player)
+		if len(successorBoards) == 0:
+			stopDigging = True
+			return (stopDigging, board)
+		bestBoard = None
+
+		if player == 2:
+			maxValue = -INFINITY
+			for idx in range(0, len(successorBoards)):
+				stopDigging, lookaheadBoard = self.oriIDMiniMax(successorBoards[idx], currentLevel + 1, maxLevel, 1, alpha,
+															 beta)
+				utility = self.oriUtilityOf(lookaheadBoard)
+				if utility > maxValue:
+					maxValue = utility
+					bestBoard = successorBoards[idx]
+				alpha = max(alpha, utility)
+				if utility >= beta:
+					return (stopDigging, successorBoards[idx])  # prune
+		else:
+			minValue = INFINITY
+			for idx in range(0, len(successorBoards)):
+				stopDigging, lookaheadBoard = self.oriIDMiniMax(successorBoards[idx], currentLevel + 1, maxLevel, 2, alpha,
+															 beta)
+				utility = self.oriUtilityOf(lookaheadBoard)
+				if utility < minValue:
+					minValue = utility
+					bestBoard = successorBoards[idx]
+				beta = min(beta, utility)
+				if utility <= alpha:
+					return (stopDigging, successorBoards[idx])  # prune
+
+		return (stopDigging, bestBoard)
+
+
+	def oriUtilityOf(self, board):
+		return self.oriPieceDifference(board) + self.oriCornerCaptions(board) + self.oriCornerCloseness(board) + self.oriMobility(board) + self.oriStability(board)
 
 	# piece difference when evaluating 
-	def pieceDifference(self, board):
+	def oriPieceDifference(self, board):
 		allTiles = [item for sublist in board for item in sublist]
 		whiteTiles = sum(1 for tile in allTiles if tile == 2)
 		blackTiles = sum(1 for tile in allTiles if tile == 1)
@@ -387,7 +448,7 @@ class GameAI(object):
 			return - (blackTiles / (blackTiles + whiteTiles)) * 100
 
 	# how many corners are owned by each player
-	def cornerCaptions(self, board):
+	def oriCornerCaptions(self, board):
 		numCorners = [0, 0]
 		if board[0][0] == 1:
 			numCorners[0] += 1
@@ -409,7 +470,7 @@ class GameAI(object):
 		return 50 * (numCorners[1] - numCorners[0])
 
 	# how many corner-closeness pieces are owned by each player
-	def cornerCloseness(self, board):
+	def oriCornerCloseness(self, board):
 		numCorners = [0, 0]
 		for row in range(1, 7):
 			if board[row][0] == 1:
@@ -436,7 +497,7 @@ class GameAI(object):
 		return 4 * (numCorners[1] - numCorners[0])
 
 	# relative mobility of a player to another (how many steps can a player move)
-	def mobility(self, board):
+	def oriMobility(self, board):
 		blackMobility = self.game.moveCanBeMade(board, 1)
 		whiteMobility = self.game.moveCanBeMade(board, 2)
 
@@ -446,7 +507,7 @@ class GameAI(object):
 			return 100 * whiteMobility / (whiteMobility + blackMobility)
 
 	# for a piece: stable - 1; semi-stable: 0; instable - -1
-	def stability(self, board):
+	def oriStability(self, board):
 		stability = [0, 0]
 		blackStability, whiteStability = stability[0], stability[1]
 
@@ -485,7 +546,7 @@ class GameAI(object):
 		else:
 			return 100 * whiteStability / (whiteStability + blackStability)
 	
-	'''
+
 
 
 
