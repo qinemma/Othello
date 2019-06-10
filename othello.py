@@ -12,7 +12,7 @@ class Othello(object):
 	def __init__(self):
 		super().__init__()
 
-		self.player = 2 # change to 2 when play two AI
+		self.player = 1 # change to 2 when play two AI
 		self.victory = 0  # 0 - ongoing | 1 - black win | 2 - white win | (-1) - draw
 		self.whiteTiles = 2
 		self.blackTiles = 2
@@ -29,13 +29,13 @@ class Othello(object):
 		# set up AI - player-computer mode
 		self.ai = ai.GameAI(self)
 		self.changed = True
-		self.AIReadyToMove = True
+		self.AIReadyToMove = False
 
 
 		# set up second AI computer-computer mode
 		# set second = True to enable two AI game
 		self.second = True
-		self.secondAIReadyToMove = False
+		self.secondAIReadyToMove = True
 
 		self.debug = False # True for debugging
 

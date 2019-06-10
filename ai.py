@@ -61,7 +61,7 @@ class GameAI(object):
 		optimalBoard = board
 		stopDigging = False
 		while not stopDigging and timeElapsed < self.timeLimit:
-			(stopDigging, optimalBoard) = self.IDMiniMax(board, 0, depth, 2, -INFINITY, INFINITY)
+			stopDigging, optimalBoard = self.IDMiniMax(board, 0, depth, 2, -INFINITY, INFINITY)
 			endTime = time.time()
 			timeElapsed += endTime - startTime
 			startTime = endTime
@@ -93,7 +93,7 @@ class GameAI(object):
 		if (not self.game.moveCanBeMade(board, player) or currentLevel == maxLevel):
 			return (stopDigging, board)
 
-		successorBoards = self.getSortedNode(board, player)
+		successorBoards = self.findSuccessorBoards(board, player)
 		if len(successorBoards) == 0:
 			stopDigging = True
 			return (stopDigging, board)
@@ -101,26 +101,28 @@ class GameAI(object):
 
 		if player == 2:
 			maxValue = -INFINITY
-			for idx in range(0, len(successorBoards)):
-				stopDigging, lookaheadBoard = self.IDMiniMax(successorBoards[idx], currentLevel+1, maxLevel, 1, alpha, beta)
+			for successor in successorBoards:
+				stopDigging, lookaheadBoard = self.IDMiniMax(successor, currentLevel+1, maxLevel, 1, alpha, beta)
 				utility = self.utilityOf(lookaheadBoard, player)
 				if utility > maxValue:
 					maxValue = utility
-					bestBoard = successorBoards[idx]
+					bestBoard = successor
 				alpha = max(alpha, utility)
 				if utility >= beta:
-					return (stopDigging, successorBoards[idx])  # prune
+					#print("alphaBeta is pruning", successor)
+					return stopDigging, successor # prune
 		else:
 			minValue = INFINITY
-			for idx in range(0, len(successorBoards)):
-				stopDigging, lookaheadBoard = self.IDMiniMax(successorBoards[idx], currentLevel+1, maxLevel, 2, alpha, beta)
+			for successor in successorBoards:
+				stopDigging, lookaheadBoard = self.IDMiniMax(successor, currentLevel+1, maxLevel, 2, alpha, beta)
 				utility = self.utilityOf(lookaheadBoard, player)
 				if utility < minValue:
 					minValue = utility
-					bestBoard = successorBoards[idx]
+					bestBoard = successor
 				beta = min(beta, utility)
 				if utility <= alpha:
-					return (stopDigging, successorBoards[idx])  # prune
+					#print("alphaBeta is pruning", successor)
+					return stopDigging, successor  # prune
 
 		return stopDigging, bestBoard
 
@@ -128,7 +130,7 @@ class GameAI(object):
 
 		startTime = time.time()
 		timeElapsed = 0
-		depth = 4
+		depth = 3
 		optimalMove = (-1, -1)
 		optimalBoard = board
 		stopDigging = False
@@ -179,6 +181,7 @@ class GameAI(object):
 
 			alpha = max(alpha, score)
 			if alpha >= beta:
+				#print("negascout is pruning", successor)
 				break
 
 		return alpha
@@ -209,9 +212,9 @@ class GameAI(object):
 		board_parity = self.parity(board)
 		board_state = self.gameState(board)
 		df = pd.Series([board_mobility, board_frontier, board_corners, xsquares, csquares, board_parity, board_state],
-					   index=["numMoves", "frontier", "corners", "Xsquares", "CSquares", "parity", "state", "label"])
+					   index=["numMoves", "frontier", "corners", "Xsquares", "CSquares", "parity", "state"])
 
-		return machineLearning.predict(df, tree)
+		return machineLearning.predict(df, self.tree)
 
 	def mobility(self, board, player):
 		# mobility, number of moves a player can make
